@@ -11,6 +11,8 @@ ADOBE.AppView = Backbone.View.extend({
 	isOnline: false,
 	
 	folios: [],
+	//The folios that have benn scanned are saved on scannedFolios
+	scannedFolios: [],
 	
 	subscriptionLabels: [],
 	
@@ -70,6 +72,16 @@ ADOBE.AppView = Backbone.View.extend({
 	updateLibraryHandler: function() {
 		var loginLbl;
 
+		//The returned object is saved using localStorage
+		var scannedFolios = localStorage.getItem('scannedFolios');
+		//It is checked if there content
+		if ( scannedFolios ){
+			try{
+				//Parse the string to the folio object with JSON
+				this.scannedFolios = JSON.parse(scannedFolios);
+			}catch( e ){}
+		}
+		// Set a flag for the API availability in the ADOBE namespace.
 		if (ADOBE.isAPIAvailable) {
 			// Put the FolioStates in the ADOBE namespace for easier lookup later.
 			ADOBE.FolioStates = adobeDPS.libraryService.folioStates;
@@ -87,10 +99,10 @@ ADOBE.AppView = Backbone.View.extend({
 			// list is an associative array so put them in a regular array.
 			for (var i in list) {
 				if (this.isOnline) { // User is online so display all the folios.
-					this.folios.push(list[i]);
+					this.folios.push(list[i]); 
 				} else {			// User is offline so only display the installed folios.
 					if (list[i].state == ADOBE.FolioStates.INSTALLED)
-						this.folios.push(list[i]);
+						this.folios.push(list[i]); 
 				}
 			}
 
@@ -131,7 +143,7 @@ ADOBE.AppView = Backbone.View.extend({
 		
 		var html  = "<div id='content-container'>";
 			html +=     "<div id='content'>";
-			html +=         "<div id='content-front'>"; // The container that displays the folios.
+			html +=         "<div id='content-front' style='width: 320px;'>"; // The container that displays the folios.
 		    html +=             "<div class='header'>";
 		    
 		if (ADOBE.Config.IS_HEADER_TEXT)
@@ -142,12 +154,25 @@ ADOBE.AppView = Backbone.View.extend({
 		    html +=             	"<div id='settings-button'></div>";
 		    html +=         	"</div>";
 		    
-			html +=             "<div id='folio-container'>";
+		    html +=             "<div id='folio-container'>";
 		
 		if (!ADOBE.isAPIAvailable || ADOBE.Config.IS_ENTITLEMENT_VIEWER)
-			html +=             "<div id='banner'></div>";
-		
-			html +=					"<div id='row-loader'><div id='spinner' class='spinner'></div></div>";
+		    html += 				"<div id='containerCatchoom'> "; //This container displays camera, text and spinner
+			html +=						"<div id='containerImg'>";
+			html +=							"<a href='#' id='buttonCamera'>";
+			html +=							"<img id='imgCamera' src='./images/camera.png'></a>";
+			html +=						"</div>";
+			html +=						"<div id='containerText'>";
+			html +=							"<p id='descriptionText'>Take a picture to add contents</p>";
+			html +=						"</div>";
+			html +=						"<div id='loader-Catchoom'>";
+			html +=							"<div id='spinnerCatchoom' class='spinnerCatchoom'><img id='imgSpinner' src='./images/spinner.gif'></div>";
+			html +=						"</div>";
+		    html +=						"<form action='#' method='post' accept-charset='utf-8' style='margin-bottom: 0px'> <input type='file' name='ir' accept='image/*' id='selectorElement'/></form>";
+			html +=					"</div>";
+			html +=						"<div id='row-loader'>";
+			html +=							"<div id='spinner' class='spinner'></div>";
+			html +=						"</div>";
 			html +=				"</div>";
 		    html +=         "</div>";
 		    html +=         "<div id='content-back'>"; // The container that displays the settings.
@@ -170,7 +195,7 @@ ADOBE.AppView = Backbone.View.extend({
 		if (!ADOBE.isAPIAvailable || adobeDPS.settingsService.autoArchive.isSupported)
 			html +=             "<div class='settings-row settings-row-auto-archive'>Auto Archive<div id='auto-archive' class='flip-switch'></div></div>";
 
-			html +=             "</div>";
+			html += 			"</div>"
 			html +=         "</div>";
 			html +=     "</div>";
 			html += "</div>";
@@ -298,10 +323,15 @@ ADOBE.AppView = Backbone.View.extend({
 			});
 		}
 		
+		//Call the recognition function
+		this.recognition();
+
 		if (ADOBE.isAPIAvailable) {
 			// The collection creates a clone of the folio objects so addFolios() passes a reference to the object.
 			// Since the folios are not on a server we don't need to load anything so pass the folios to the constructor.
-			this.libraryCollection = new ADOBE.LibraryCollection(this.folios);
+			
+			//IMPORTANT: pass the scanned folios to the libraryCollection
+			this.libraryCollection = new ADOBE.LibraryCollection(this.scannedFolios);
 			
 			// Add the folios which are currently available. On the first launch this
 			// does not guarentee that all folios are immediately available. The callback
@@ -324,6 +354,46 @@ ADOBE.AppView = Backbone.View.extend({
 			this.libraryCollection.on("all", this.addFolios);
 			this.libraryCollection.fetch({dataType: "xml"});
 		}
+	},
+
+	//This function makes operations relate to the image recognition
+	recognition: function(){
+		if (!craftar.supportsImageSelector()) {
+			alert("Support Error!");
+		}
+
+	    var selectorElement = document.getElementById('selectorElement');
+
+	    var buttonCamera = document.getElementById('buttonCamera');
+		buttonCamera.addEventListener('click', function(){
+			selectorElement.click();
+		});
+		var selector = new craftar.ImageSelector(selectorElement);
+		var cloudRecognition =  new craftar.CloudRecognition({token: "YOUR_CRAFTAR_TOKEN_HERE"});
+
+		var self = this;
+		
+		cloudRecognition.addListener('results', function(error, results, xhr) {
+			$("#imgSpinner").hide();
+			if (results.results && results.results.length > 0) {
+				var resultItem = results.results[0];
+				var foliosAux = self.folios;
+				for(var i = 0; i < foliosAux.length; i++){
+					if(foliosAux[i].productId == resultItem.item.name){
+						self.scannedFolios.push(foliosAux[i]);
+					}
+				}
+				localStorage.setItem('scannedFolios', JSON.stringify(self.scannedFolios));
+				self.updateLibraryHandler();
+			} else {
+				alert("No results found, point to an item.");
+			}
+		});
+
+		selector.addListener('image', function(craftarImage) {
+			$("#imgSpinner").show();
+			cloudRecognition.search(craftarImage);
+		});
 	},
 	
 	addFolios: function() {
@@ -352,6 +422,8 @@ ADOBE.AppView = Backbone.View.extend({
 			this.spinner.stop();
 			$("#row-loader").css("display",  "none");
 		}
+		this.spinner.stop();
+		$("#row-loader").css("display",  "none");
 	},
 	
 	addRow: function() {
@@ -372,6 +444,8 @@ ADOBE.AppView = Backbone.View.extend({
 				this.spinner.stop();
 				$("#row-loader").css("display",  "none");
 			}
+			this.spinner.stop();
+			$("#row-loader").css("display",  "none");
 		}
 	},
 	
@@ -458,6 +532,8 @@ ADOBE.AppView = Backbone.View.extend({
 			this.spinner.stop();
 			$("#row-loader").css("display",  "none");
 		}
+		this.spinner.stop();
+		$("#row-loader").css("display",  "none");
 	},
 	
 	printSubscriber_clickHandler: function() {

@@ -166,9 +166,11 @@ body {
     position: relative;
     border-bottom: 1px solid #CBCBCB;
     padding-top: 10px;
+    clear:both;
 }
 
 .folio-item-view img {
+    clear: both;
     float: left;
     margin-right: 10px;
     display: inline-block;

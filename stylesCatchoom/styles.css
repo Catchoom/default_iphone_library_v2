@@ -1,0 +1,48 @@
+#selectorElement {
+	height: 0;
+	width: 0;
+}
+
+#containerCatchoom{
+	width: 306px;
+	height: 65px;
+	margin-left: 10px;
+  	margin-right: 0px;
+	margin-bottom: 0px;
+  	margin-top: 10px;
+  	display: block;
+}
+
+#containerImg{
+	width: 65px;
+	float: left;
+	clear: both;
+
+}
+
+#containerText{
+	margin-left: 10px;
+	width: 120px;
+	float: left;
+}
+
+#loader-Catchoom{
+	width: 10px;
+	float: left;
+}
+
+#imgSpinner{
+	width: 30px;
+	height: 30px;
+	margin-top: 15px;
+	margin-left: 30px;
+	display: none;
+}
+
+
+
+
+
+
+
+
